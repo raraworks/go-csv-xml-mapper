@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 )
 
 func main() {
@@ -32,7 +33,10 @@ func readCsvAndWriteXmlFile(filePath string, outputFilePath string) {
 	outputFile.WriteString(xml.Header)
 	outputFile.WriteString("<root>\n")
 	//read csv line by line
+	isFirstLineRead := false
 	for {
+		//if first line - get headers
+
 		record, err := csvReader.Read()
 		if err == io.EOF {
 			break
@@ -42,7 +46,29 @@ func readCsvAndWriteXmlFile(filePath string, outputFilePath string) {
 			log.Fatal("Unable to read input file "+filePath, err)
 		}
 		//if all good do smth
-		line := &SalidziniProduct{ProductName: record[0]}
+		if isFirstLineRead == false {
+			isFirstLineRead = true
+			continue
+		}
+		if record[52] != "active" {
+			continue
+		}
+		price, _ := strconv.ParseFloat(record[20], 64)
+		inStock, _ := strconv.Atoi(record[17])
+		line := &SalidziniProduct{
+			Name:         record[1],
+			Link:         "https://www.rocketbaby.lv/products/" + record[0],
+			Price:        price,
+			Image:        record[25],
+			CategoryFull: record[5],
+			//CategoryLink: record[4],
+			Brand: record[3],
+			//Model:        record[6],
+			//Color:        record[7],
+			Mpn: record[14],
+			//Gtin:         record[9],
+			InStock: inStock,
+		}
 		out, _ := xml.MarshalIndent(line, "", "  ")
 		_, err = outputFile.WriteString(string(out))
 		if err != nil {
@@ -54,6 +80,17 @@ func readCsvAndWriteXmlFile(filePath string, outputFilePath string) {
 }
 
 type SalidziniProduct struct {
-	XMLName     xml.Name `xml:"item"`
-	ProductName string   `xml:"name"`
+	XMLName      xml.Name `xml:"item"`
+	Name         string   `xml:"name"`
+	Link         string   `xml:"link"`
+	Price        float64  `xml:"price"`
+	Image        string   `xml:"image"`
+	CategoryFull string   `xml:"category_full"`
+	CategoryLink string   `xml:"category_link"`
+	Brand        string   `xml:"brand"`
+	Model        string   `xml:"model"`
+	Color        string   `xml:"color"`
+	Mpn          string   `xml:"mpn"`
+	Gtin         string   `xml:"gtin"`
+	InStock      int      `xml:"in_stock"`
 }
