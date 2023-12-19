@@ -34,9 +34,8 @@ func readCsvAndWriteXmlFile(filePath string, outputFilePath string) {
 	outputFile.WriteString("<root>\n")
 	//read csv line by line
 	isFirstLineRead := false
+	columnMap := make(map[string]int)
 	for {
-		//if first line - get headers
-
 		record, err := csvReader.Read()
 		if err == io.EOF {
 			break
@@ -46,28 +45,38 @@ func readCsvAndWriteXmlFile(filePath string, outputFilePath string) {
 			log.Fatal("Unable to read input file "+filePath, err)
 		}
 		//if all good do smth
+		//if first line - map header value to column index
 		if isFirstLineRead == false {
+			for i, v := range record {
+				columnMap[v] = i
+			}
 			isFirstLineRead = true
 			continue
 		}
-		if record[52] != "active" {
+		//exclude inactive products
+		if record[columnMap["Status"]] != "active" {
 			continue
 		}
-		price, _ := strconv.ParseFloat(record[20], 64)
-		inStock, _ := strconv.Atoi(record[17])
+		//exclude delivery product
+		if record[columnMap["Type"]] == "delivery" {
+			continue
+		}
+		price, _ := strconv.ParseFloat(record[columnMap["Variant Price"]], 64)
+		//TODO: create ternary operator function
+		inStock, _ := strconv.Atoi(record[columnMap["Variant Inventory Qty"]])
+		if inStock < 1 {
+			inStock = 1
+		}
 		line := &SalidziniProduct{
-			Name:         record[1],
-			Link:         "https://www.rocketbaby.lv/products/" + record[0],
-			Price:        price,
-			Image:        record[25],
-			CategoryFull: record[5],
-			//CategoryLink: record[4],
-			Brand: record[3],
-			//Model:        record[6],
-			//Color:        record[7],
-			Mpn: record[14],
-			//Gtin:         record[9],
-			InStock: inStock,
+			Name:                record[columnMap["Title"]],
+			Link:                "https://www.rocketbaby.lv/products/" + record[columnMap["Handle"]],
+			Price:               price,
+			Image:               record[columnMap["Image Src"]],
+			CategoryFull:        record[columnMap["Type"]],
+			Brand:               record[columnMap["Vendor"]],
+			Mpn:                 record[columnMap["Variant SKU"]],
+			InStock:             inStock,
+			DeliveryDpdPakuBode: 2.99,
 		}
 		out, _ := xml.MarshalIndent(line, "", "  ")
 		_, err = outputFile.WriteString(string(out))
@@ -80,17 +89,17 @@ func readCsvAndWriteXmlFile(filePath string, outputFilePath string) {
 }
 
 type SalidziniProduct struct {
-	XMLName      xml.Name `xml:"item"`
-	Name         string   `xml:"name"`
-	Link         string   `xml:"link"`
-	Price        float64  `xml:"price"`
-	Image        string   `xml:"image"`
-	CategoryFull string   `xml:"category_full"`
-	CategoryLink string   `xml:"category_link"`
-	Brand        string   `xml:"brand"`
-	Model        string   `xml:"model"`
-	Color        string   `xml:"color"`
-	Mpn          string   `xml:"mpn"`
-	Gtin         string   `xml:"gtin"`
-	InStock      int      `xml:"in_stock"`
+	XMLName             xml.Name `xml:"item"`
+	Name                string   `xml:"name"`
+	Link                string   `xml:"link"`
+	Price               float64  `xml:"price"`
+	Image               string   `xml:"image"`
+	CategoryFull        string   `xml:"category_full"`
+	CategoryLink        string   `xml:"category_link"`
+	Brand               string   `xml:"brand"`
+	Model               string   `xml:"model"`
+	Color               string   `xml:"color"`
+	Mpn                 string   `xml:"mpn"`
+	DeliveryDpdPakuBode float64  `xml:"delivery_dpd_paku_bode"`
+	InStock             int      `xml:"in_stock"`
 }
